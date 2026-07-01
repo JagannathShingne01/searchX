@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import productRoutes from "./routes/product.routes";
+import { errorHandler } from "./middleware/error.middleware";
 
 const app = express();
 
@@ -11,5 +13,8 @@ app.get("/health", (_, res) => {
     status: "ok",
   });
 });
+
+app.use("/api/products", productRoutes);
+app.use(errorHandler);
 
 export default app;
