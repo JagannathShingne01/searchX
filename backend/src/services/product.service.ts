@@ -3,6 +3,7 @@ import { IProductRepository } from "../repositories/interfaces/product.repositor
 import { AppError } from "../utils/errors/AppError";
 import { rabbitMQPublisher } from "../utils/rabbitmq.publisher";
 import { ProductEvent, ProductRoutingKey } from "../types/rabbitmq.types";
+import { incrementSearchVersion } from "../utils/cache";
 
 export class ProductService {
 
@@ -31,7 +32,7 @@ export class ProductService {
                 timestamp: new Date().toISOString(),
                 payload: product,
             });
-
+        await incrementSearchVersion();
         return product;
     }
 
@@ -85,7 +86,7 @@ export class ProductService {
                 payload: updatedProduct,
             }
         );
-
+        await incrementSearchVersion();
         return updatedProduct;
     }
 
@@ -108,7 +109,7 @@ export class ProductService {
                 timestamp: new Date().toISOString(),
                 payload: deletedProduct,
             });
-
+        await incrementSearchVersion();
         return deletedProduct;
     }
 }

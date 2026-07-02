@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import productRoutes from "./routes/product.routes";
+import searchRoutes from "./routes/search.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 const app = express();
@@ -15,6 +16,7 @@ app.get("/health", (_, res) => {
 });
 
 app.use("/api/products", productRoutes);
+app.use("/api/search", searchRoutes);
 app.use(errorHandler);
 
 export default app;
