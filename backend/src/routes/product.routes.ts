@@ -4,6 +4,7 @@ import { createProductSchema, updateProductSchema } from "../validators/product.
 import { ProductRepository } from "../repositories/product.repository";
 import { ProductService } from "../services/product.service";
 import { ProductController } from "../controllers/product.controller";
+import { upload } from "../config/multer";
 
 const router = Router();
 
@@ -15,6 +16,13 @@ router.post(
   "/",
   validate(createProductSchema),
   controller.createProduct
+  
+);
+
+router.post(
+  "/import",
+  upload.single("file"),
+  controller.importProducts
 );
 
 router.get(

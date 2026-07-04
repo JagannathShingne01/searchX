@@ -10,12 +10,45 @@ export class ElasticsearchService {
     await elasticsearch.index({
       index: this.index,
       id: product.id,
-      document: product,
+      document: {
+        ...product,
+        suggest: {
+          input: [
+            product.name,
+            product.brand,
+            product.category,
+          ],
+        },
+      },
       refresh: false,
     });
 
     console.log(
       `Indexed Product : ${product.id}`
+    );
+  }
+
+  async bulkIndexProducts(products: SearchProduct[]): Promise<void> {
+    if (products.length === 0) {
+      return;
+    }
+
+    const operations = products.flatMap((product) => [
+          {
+            index: {
+              _index: this.index,
+              _id: product.id
+            }
+          },
+          product
+        ]
+      );
+    await elasticsearch.bulk({
+      refresh: false,
+      operations
+    });
+    console.log(
+      `Bulk Indexed ${products.length} Products`
     );
   }
 

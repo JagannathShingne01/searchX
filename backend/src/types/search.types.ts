@@ -9,6 +9,9 @@ export interface SearchProduct {
   stock: number;
   createdAt: Date;
   updatedAt: Date;
+  suggest: {
+    input: string[];
+  };
 }
 
 export interface SearchResult {
@@ -20,4 +23,15 @@ export interface SearchResult {
   category: string;
   price: number;
   stock: number;
+  popularityScore?: number;
+}
+
+export interface ISearchResponse {
+  products: SearchResult[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }

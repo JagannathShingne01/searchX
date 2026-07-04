@@ -17,5 +17,12 @@ export function mapProductToSearch(
     stock: product.stock,
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
+    suggest: {
+        input: [
+            product.name,
+            product.brand,
+            product.category
+        ]
+    }
   };
 }

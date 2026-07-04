@@ -4,6 +4,9 @@ import { AppError } from "../utils/errors/AppError";
 import { rabbitMQPublisher } from "../utils/rabbitmq.publisher";
 import { ProductEvent, ProductRoutingKey } from "../types/rabbitmq.types";
 import { incrementSearchVersion } from "../utils/cache";
+import { CreateProductDto } from "../validators/product.validator";
+import csv from "csv-parser";
+import { Readable } from "stream";
 
 export class ProductService {
 
@@ -34,6 +37,43 @@ export class ProductService {
             });
         await incrementSearchVersion();
         return product;
+    }
+
+    async importProducts(
+        fileBuffer: Buffer
+    ) {
+        const products: CreateProductDto[] = [];
+        const BATCH_SIZE = 50;
+        await new Promise<void>((resolve, reject) => {
+            Readable
+                .from(fileBuffer)
+                .pipe(csv())
+                .on("data", (row) => {
+                    products.push({
+                        sku: row.sku,
+                        name: row.name,
+                        description: row.description,
+                        brand: row.brand,
+                        category: row.category,
+                        price: Number(row.price),
+                        stock: Number(row.stock),
+                    });
+
+                })
+                .on("end", resolve)
+                .on("error", reject);
+        });
+        for (let i = 0; i < products.length; i += BATCH_SIZE) {
+            const batch = products.slice(
+                i,
+                i + BATCH_SIZE
+            );
+            await Promise.all(
+                batch.map(product =>
+                    this.createProduct(product)
+                )
+            );
+        }
     }
 
     async getProductById(id: string): Promise<Product> {

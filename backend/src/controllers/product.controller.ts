@@ -22,6 +22,27 @@ export class ProductController {
         }
     };
 
+    importProducts = async (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) => {
+        const file = req.file;
+
+        if (!file) {
+            throw new Error("CSV file is required.");
+        }
+        const result =
+            await this.productService.importProducts(
+                file.buffer
+            );
+
+        return res.status(200).json({
+            success: true,
+            data: result,
+        });
+    }
+
     getAllProducts = async (
         _req: Request,
         res: Response,

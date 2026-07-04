@@ -28,6 +28,9 @@ export async function initializeElasticsearch() {
                         "name": {
                             "type": "search_as_you_type"
                         },
+                         "suggest":{
+                            "type": "completion"
+                        },
                         "description": {
                             "type": "text"
                         },
@@ -53,7 +56,7 @@ export async function initializeElasticsearch() {
                         "stock": {
                             "type": "integer"
                         }
-                    }
+                    },
                 }
             },);
             console.log("✅ Products index created");
