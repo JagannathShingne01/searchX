@@ -1,5 +1,5 @@
 import { Prisma, Product } from "@prisma/client";
-import { IProductRepository } from "../repositories/interfaces/product.repository.interface";
+import { BulkImportResponse, IProductRepository } from "../repositories/interfaces/product.repository.interface";
 import { AppError } from "../utils/errors/AppError";
 import { rabbitMQPublisher } from "../utils/rabbitmq.publisher";
 import { ProductEvent, ProductRoutingKey } from "../types/rabbitmq.types";
@@ -7,6 +7,7 @@ import { incrementSearchVersion } from "../utils/cache";
 import { CreateProductDto } from "../validators/product.validator";
 import csv from "csv-parser";
 import { Readable } from "stream";
+import { logger } from "../config/logger";
 
 export class ProductService {
 
@@ -36,14 +37,18 @@ export class ProductService {
                 payload: product,
             });
         await incrementSearchVersion();
+        logger.info({
+            event: ProductEvent.PRODUCT_CREATED,
+            payload: product.id
+        }, "Product created and event published to RabbitMQ");
         return product;
     }
 
-    async importProducts(
-        fileBuffer: Buffer
-    ) {
+    async importProducts(fileBuffer: Buffer): Promise<BulkImportResponse> {
         const products: CreateProductDto[] = [];
         const BATCH_SIZE = 50;
+        let imported = 0;
+
         await new Promise<void>((resolve, reject) => {
             Readable
                 .from(fileBuffer)
@@ -63,17 +68,28 @@ export class ProductService {
                 .on("end", resolve)
                 .on("error", reject);
         });
+
         for (let i = 0; i < products.length; i += BATCH_SIZE) {
-            const batch = products.slice(
-                i,
-                i + BATCH_SIZE
-            );
-            await Promise.all(
-                batch.map(product =>
-                    this.createProduct(product)
-                )
-            );
+            const batch = products.slice(i, i + BATCH_SIZE);
+            const result = await this.repository.createMany(batch);
+            imported += result.count;
+            await rabbitMQPublisher.publishProductsImported(batch);
         }
+        await incrementSearchVersion();
+        logger.info({
+            event: ProductEvent.PRODUCT_IMPORTED,
+            payload: {
+                total: products.length,
+                imported,
+                skipped: products.length - imported
+            }
+        }, "Products imported and event published to RabbitMQ");
+        return {
+            total: products.length,
+            imported,
+            skipped: products.length - imported
+
+        };
     }
 
     async getProductById(id: string): Promise<Product> {
@@ -84,7 +100,6 @@ export class ProductService {
                 404
             );
         }
-
         return product;
     }
 
@@ -127,6 +142,10 @@ export class ProductService {
             }
         );
         await incrementSearchVersion();
+        logger.info({
+            event: ProductEvent.PRODUCT_UPDATED,
+            payload: updatedProduct.id
+        }, "Product updated and event published to RabbitMQ");
         return updatedProduct;
     }
 
@@ -150,6 +169,10 @@ export class ProductService {
                 payload: deletedProduct,
             });
         await incrementSearchVersion();
+        logger.info({
+            event: ProductEvent.PRODUCT_DELETED,
+            payload: deletedProduct.id
+        }, "Product deleted and event published to RabbitMQ");
         return deletedProduct;
     }
 }

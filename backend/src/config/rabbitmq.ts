@@ -1,5 +1,6 @@
 import amqp, { Channel, ChannelModel } from "amqplib";
 import { ProductRoutingKey } from "../types/rabbitmq.types";
+import { logger } from "./logger";
 class RabbitMQManager {
   private connection: ChannelModel | null = null;
   private channel: Channel | null = null;
@@ -9,9 +10,7 @@ class RabbitMQManager {
       this.connection = await amqp.connect(
         process.env.RABBITMQ_URL!
       );
-
       this.channel = await this.connection.createChannel();
-
       //Create if doesn't exist.
       await this.channel.assertExchange(
         process.env.RABBITMQ_EXCHANGE!,
@@ -25,6 +24,8 @@ class RabbitMQManager {
         process.env.RABBITMQ_QUEUE!,
         {
           durable: true,
+          deadLetterExchange: "",
+          deadLetterRoutingKey: process.env.RABBITMQ_DLQ_QUEUE!
         }
       );
 
@@ -46,13 +47,11 @@ class RabbitMQManager {
         ProductRoutingKey.PRODUCT_DELETED
       );
 
-      console.log("✅ RabbitMQ Connected");
+      logger.info("✅ RabbitMQ Connected");
     } catch (error) {
-      console.error(
-        "RabbitMQ Connection Failed",
-        error
-      );
-
+      logger.error({
+        error: error,
+      }, "RabbitMQ connection failed");
       process.exit(1);
     }
   }
@@ -72,7 +71,7 @@ class RabbitMQManager {
 
     await this.connection?.close();
 
-    console.log("RabbitMQ Connection Closed");
+    logger.info("RabbitMQ Connection Closed");
   }
 }
 

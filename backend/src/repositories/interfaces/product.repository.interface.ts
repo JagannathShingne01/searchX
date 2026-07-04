@@ -12,4 +12,12 @@ export interface IProductRepository {
   update(id: string, data: Prisma.ProductUpdateInput): Promise<Product>;
 
   delete(id: string): Promise<Product>;
+
+  createMany(products: any[]): Promise<Prisma.BatchPayload>;
+}
+
+export interface BulkImportResponse {
+    total: number;
+    imported: number;
+    skipped: number;
 }

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { AppError } from "../utils/errors/AppError";
+import { logger } from "../config/logger";
 
 export function errorHandler(
   err: unknown,
@@ -23,7 +24,9 @@ export function errorHandler(
     });
   }
 
-  console.error(err);
+  logger.error({
+    error: err,
+  }, "Internal Server Error");
 
   return res.status(500).json({
     success: false,

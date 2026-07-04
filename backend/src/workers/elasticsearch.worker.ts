@@ -2,10 +2,12 @@ import "dotenv/config"; // MUST be the first import
 
 import { Channel, ConsumeMessage } from "amqplib";
 import { rabbitMQ } from "../config/rabbitmq";
-import { ProductEvent, RabbitMQEvent } from "../types/rabbitmq.types";
+import { ProductEvent, ProductRoutingKey, RabbitMQEvent } from "../types/rabbitmq.types";
 import { SearchProduct } from "../types/search.types";
 import { mapProductToSearch } from "../utils/product.mapper";
 import { elasticsearchService } from "../services/elasticsearch.service";
+import { rabbitMQPublisher } from "../utils/rabbitmq.publisher";
+import { logger } from "../config/logger";
 
 class ElasticsearchWorker {
 
@@ -30,13 +32,13 @@ class ElasticsearchWorker {
             }
         );
 
-        console.log("🚀 Elasticsearch Worker Started");
+        logger.info("🚀 Elasticsearch Worker Started");
     }
 
     private async processMessage(channel: Channel, message: ConsumeMessage) {
-
+        const MAX_RETRIES = 3;
+        const event = JSON.parse(message.content.toString()) as RabbitMQEvent<any>;
         try {
-            const event = JSON.parse(message.content.toString()) as RabbitMQEvent<any>;
             switch (event.event) {
                 case ProductEvent.PRODUCT_CREATED: {
                     const product: SearchProduct =
@@ -80,21 +82,35 @@ class ElasticsearchWorker {
                     break;
                 }
 
+                case ProductEvent.PRODUCT_IMPORTED: {
+                    const products = event.payload;
+                    await elasticsearchService.bulkIndexProducts(
+                        products.map(mapProductToSearch)
+                    );
+                    channel.ack(message);
+                    break;
+                }
+
                 default:
                     console.warn(
                         `Unknown event received: ${event.event}`
                     );
             }
-
-            
-            console.log(`✅ Processed ${event.event}`);
+            logger.info(`✅ Processed ${event.event}`);
         } catch (error) {
-            console.error(error);
-            channel.nack(
-                message,
-                false,
-                true
-            );
+            const retries = (event.retryCount ?? 0);
+            if (retries < MAX_RETRIES) {
+                await rabbitMQPublisher.publish(
+                    ProductRoutingKey.PRODUCT_CREATED,
+                    {
+                        ...event,
+                        retryCount: retries + 1,
+                    }
+                );
+                channel.ack(message);
+                return;
+            }
+            channel.nack(message, false, false);
         }
     }
 
@@ -111,9 +127,9 @@ class ElasticsearchWorker {
             channel.ack(message);
         }
 
-        console.log(
-            `Bulk Indexed ${this.products.length} Products`
-        );
+        logger.info({
+            count: this.products.length,
+        }, "Flushed products to Elasticsearch");
 
         this.products = [];
         this.messages = [];

@@ -1,12 +1,13 @@
 import { elasticsearch } from "../config/elasticsearch";
+import { logger } from "../config/logger";
 import { SearchProduct } from "../types/search.types";
 
 export class ElasticsearchService {
   private readonly index = process.env.ELASTICSEARCH_INDEX!;
   async indexProduct(product: SearchProduct): Promise<void> {
-    console.log(`Indexing Product : ${product.id}`
+    logger.info(`Indexing Product : ${product.id}`
     );
-    console.log(`Indexing Product : ${this.index}`);
+    logger.info(`Indexing Product : ${this.index}`);
     await elasticsearch.index({
       index: this.index,
       id: product.id,
@@ -23,7 +24,7 @@ export class ElasticsearchService {
       refresh: false,
     });
 
-    console.log(
+    logger.info(
       `Indexed Product : ${product.id}`
     );
   }
@@ -47,7 +48,7 @@ export class ElasticsearchService {
       refresh: false,
       operations
     });
-    console.log(
+    logger.info(
       `Bulk Indexed ${products.length} Products`
     );
   }
@@ -60,7 +61,7 @@ export class ElasticsearchService {
       refresh: false,
     });
 
-    console.log(
+    logger.info(
       `Updated Product : ${product.id}`
     );
   }
@@ -72,7 +73,7 @@ export class ElasticsearchService {
       refresh: false,
     });
 
-    console.log(
+    logger.info(
       `Deleted Product : ${productId}`
     );
   }

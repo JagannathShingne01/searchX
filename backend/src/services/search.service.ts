@@ -4,6 +4,7 @@ import { ISearchResponse, SearchResult } from "../types/search.types";
 import { getSearchVersion } from "../utils/cache";
 import { SearchCompletionSuggestOption, SearchResponse } from "@elastic/elasticsearch/lib/api/types";
 import { searchAnalyticsService } from "./search-analytics.service";
+import { logger } from "../config/logger";
 
 export class SearchService {
     private readonly index = process.env.ELASTICSEARCH_INDEX!;
@@ -50,12 +51,23 @@ export class SearchService {
         // Step 1 - Check Redis Cache
         const cached = await redis.get(cacheKey);
         if (cached) {
-            console.log("✅ Redis Cache Hit");
+            logger.info(
+                {
+                    query,
+                    cacheKey,
+                },
+                "Redis Cache Hit"
+            );
 
             return JSON.parse(cached);
         }
 
-        console.log("❌ Redis Cache Miss");
+        logger.info(
+            {
+                query,
+            },
+            "Redis Cache Miss"
+        );
 
         const filters: any[] = [];
         if (brand) {
@@ -236,7 +248,10 @@ export class SearchService {
                 EX: 60,
             }
         );
-        console.log("✅ ", searchResponse);
+        logger.info({
+            query,
+            cacheKey,
+        }, "Redis Cache Set");;
 
         void searchAnalyticsService.track(query);
         return searchResponse;
@@ -253,11 +268,17 @@ export class SearchService {
         const cached = await redis.get(cacheKey);
 
         if (cached) {
-            console.log("✅ Suggestion Cache Hit");
+            logger.info({
+                cacheKey,
+                query
+            }, "Suggestion Cache Hit");
             return JSON.parse(cached);
         }
 
-        console.log("❌ Suggestion Cache Miss");
+        logger.info({
+            cacheKey,
+            query
+        }, "Suggestion Cache Miss");
 
         const response = await elasticsearch.search({
             index: this.index,

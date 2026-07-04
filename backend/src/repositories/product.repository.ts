@@ -3,6 +3,7 @@
 import { Prisma, Product } from "@prisma/client";
 import { BaseRepository } from "./base.repository";
 import { IProductRepository } from "./interfaces/product.repository.interface";
+import { CreateProductDto } from "../validators/product.validator";
 
 export class ProductRepository extends BaseRepository implements IProductRepository {
     async create(data: Prisma.ProductCreateInput): Promise<Product> {
@@ -10,7 +11,14 @@ export class ProductRepository extends BaseRepository implements IProductReposit
             data
         });
     }
-    
+
+    async createMany(products: CreateProductDto[]): Promise<Prisma.BatchPayload> {
+        return this.prisma.product.createMany({
+            data: products,
+            skipDuplicates: true,
+        });
+    }
+
     async findById(id: string) {
         return this.prisma.product.findUnique({
             where: { id }

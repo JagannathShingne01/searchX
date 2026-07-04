@@ -1,5 +1,7 @@
+import { logger } from "../config/logger";
 import { rabbitMQ } from "../config/rabbitmq";
-import { ProductRoutingKey, RabbitMQEvent } from "../types/rabbitmq.types";
+import { ProductEvent, ProductRoutingKey, RabbitMQEvent } from "../types/rabbitmq.types";
+import { CreateProductDto } from "../validators/product.validator";
 
 class RabbitMQPublisher {
   async publish<T>(routingKey: ProductRoutingKey, event: RabbitMQEvent<T>): Promise<void> {
@@ -19,8 +21,22 @@ class RabbitMQPublisher {
       throw new Error("Failed to publish message.");
     }
 
-    console.log(
-      `📨 Event Published: ${event.event}`
+    logger.info({
+      routingKey,
+      event,
+    }, "Message Published to RabbitMQ");
+  }
+
+  async publishProductsImported(
+    products: CreateProductDto[]
+  ): Promise<void> {
+    await this.publish<CreateProductDto[]>(
+      ProductRoutingKey.PRODUCT_IMPORTED,
+      {
+        event: ProductEvent.PRODUCT_IMPORTED,
+        timestamp: new Date().toISOString(),
+        payload: products,
+      }
     );
   }
 }
