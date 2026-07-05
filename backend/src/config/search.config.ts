@@ -1,0 +1,7 @@
+export const SEARCH_CONFIG = {
+    AUTOCOMPLETE_BOOST: 4,
+    BRAND_BOOST: 2,
+    CATEGORY_BOOST: 1.5,
+    FUZZY_BOOST: 0.5,
+    MAX_LIMIT: 50,
+} as const;

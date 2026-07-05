@@ -5,6 +5,7 @@ import { getSearchVersion } from "../utils/cache";
 import { SearchCompletionSuggestOption, SearchResponse } from "@elastic/elasticsearch/lib/api/types";
 import { searchAnalyticsService } from "./search-analytics.service";
 import { logger } from "../config/logger";
+import { SEARCH_CONFIG } from "../config/search.config";
 
 export class SearchService {
     private readonly index = process.env.ELASTICSEARCH_INDEX!;
@@ -18,6 +19,12 @@ export class SearchService {
                     limit: 10,
                     total: 0,
                     totalPages: 0
+                },
+                meta: {
+                    cache: "MISS",
+                    searchEngine: "elasticsearch",
+                    searchTimeMs: 0,
+                    searchVersion: ""
                 }
             };
         }
@@ -29,13 +36,19 @@ export class SearchService {
                     limit: 10,
                     total: 0,
                     totalPages: 0
+                },
+                meta: {
+                    cache: "MISS",
+                    searchEngine: "elasticsearch",
+                    searchTimeMs: 0,
+                    searchVersion: ""
                 }
             };
         }
 
         page = Math.max(page, 100);
         limit = Math.max(limit, 1);
-        limit = Math.min(limit, 50);
+        limit = Math.min(limit, SEARCH_CONFIG.MAX_LIMIT);
 
         const from = (page - 1) * limit;
 
@@ -59,7 +72,10 @@ export class SearchService {
                 "Redis Cache Hit"
             );
 
-            return JSON.parse(cached);
+            const response = JSON.parse(cached);
+            response.meta.cache = "HIT";
+            response.meta.searchEngine = "redis";
+            return response;
         }
 
         logger.info(
@@ -141,6 +157,7 @@ export class SearchService {
                 sort = [];
         }
 
+        const start = performance.now();
         // Step 2 - Query Elasticsearch
         const response = await elasticsearch.search<SearchResult>({
             index: this.index,
@@ -156,14 +173,14 @@ export class SearchService {
                                     "name._2gram",
                                     "name._3gram"
                                 ],
-                                boost: 4
+                                boost: SEARCH_CONFIG.AUTOCOMPLETE_BOOST
                             }
                         },
                         {
                             match: {
                                 brand: {
                                     query,
-                                    boost: 2
+                                    boost: SEARCH_CONFIG.BRAND_BOOST
                                 }
                             }
                         },
@@ -171,7 +188,7 @@ export class SearchService {
                             match: {
                                 category: {
                                     query,
-                                    boost: 1.5
+                                    boost: SEARCH_CONFIG.CATEGORY_BOOST
                                 }
                             }
                         },
@@ -180,7 +197,7 @@ export class SearchService {
                                 name: {
                                     value: query,
                                     fuzziness: "AUTO",
-                                    boost: 0.5
+                                    boost: SEARCH_CONFIG.FUZZY_BOOST
                                 }
                             }
                         }
@@ -193,7 +210,7 @@ export class SearchService {
             size: limit,
             sort
         });
-
+        const searchTimeMs = Math.round(performance.now() - start);
         // Step 3 - Process Results
         const products =
             response.hits.hits
@@ -238,6 +255,12 @@ export class SearchService {
                 total,
                 totalPages: Math.ceil(total / limit),
             },
+            meta: {
+                cache: "MISS",
+                searchEngine: "elasticsearch",
+                searchTimeMs,
+                searchVersion: version
+            }
         };
 
         // Step 4 - Set Redis Cache

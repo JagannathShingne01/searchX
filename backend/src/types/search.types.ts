@@ -26,6 +26,13 @@ export interface SearchResult {
   popularityScore?: number;
 }
 
+export interface SearchMeta {
+  cache: "HIT" | "MISS";
+  searchEngine: "redis" | "elasticsearch";
+  searchTimeMs: number;
+  searchVersion: string;
+}
+
 export interface ISearchResponse {
   products: SearchResult[];
   pagination: {
@@ -34,4 +41,38 @@ export interface ISearchResponse {
     total: number;
     totalPages: number;
   };
+  meta: SearchMeta;
+}
+
+export interface SearchExplainResponse {
+  query: string;
+  strategy: {
+    autocomplete: {
+      enabled: boolean;
+      type: string;
+      boost: number;
+    };
+    brand: {
+      enabled: boolean;
+      boost: number;
+    };
+    category: {
+      enabled: boolean;
+      boost: number;
+    };
+    fuzzy: {
+      enabled: boolean;
+      boost: number;
+      fuzziness: string;
+    };
+    ranking: {
+      enabled: boolean;
+      formula: string;
+    };
+  };
+  supportedFilters: string[];
+  pagination: {
+    maxLimit: number;
+  };
+
 }

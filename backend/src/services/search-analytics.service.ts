@@ -1,5 +1,7 @@
 import { SearchAnalytics } from "@prisma/client";
 import { SearchAnalyticsRepository } from "../repositories/search-analytics.repository";
+import { SearchExplainResponse } from "../types/search.types";
+import { SEARCH_CONFIG } from "../config/search.config";
 
 export class SearchAnalyticsService {
     constructor(
@@ -52,6 +54,47 @@ export class SearchAnalyticsService {
         return popularityMap;
     }
 
+    async explainSearch(
+        query: string
+    ): Promise<SearchExplainResponse> {
+        return {
+            query,
+            strategy: {
+                autocomplete: {
+                    enabled: true,
+                    type: "bool_prefix",
+                    boost: SEARCH_CONFIG.AUTOCOMPLETE_BOOST,
+                },
+                brand: {
+                    enabled: true,
+                    boost: SEARCH_CONFIG.BRAND_BOOST,
+                },
+                category: {
+                    enabled: true,
+                    boost: SEARCH_CONFIG.CATEGORY_BOOST,
+                },
+                fuzzy: {
+                    enabled: true,
+                    boost: SEARCH_CONFIG.FUZZY_BOOST,
+                    fuzziness: "AUTO",
+                },
+                ranking: {
+                    enabled: true,
+                    formula:
+                        "Elastic Score + Popularity Score",
+                },
+            },
+            supportedFilters: [
+                "brand",
+                "category",
+                "price",
+                "stock",
+            ],
+            pagination: {
+                maxLimit: SEARCH_CONFIG.MAX_LIMIT,
+            },
+        };
+    }
 }
 
 export const searchAnalyticsService = new SearchAnalyticsService();
