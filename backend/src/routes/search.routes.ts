@@ -25,4 +25,9 @@ router.post(
   "/click",
   analyticsController.trackClick
 );
+
+router.get(
+  "/explain",
+  analyticsController.explainSearch
+);
 export default router;
